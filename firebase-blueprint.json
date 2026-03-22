@@ -1,0 +1,44 @@
+{
+  "entities": {
+    "Event": {
+      "title": "Event",
+      "description": "A calendar event created by a user.",
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "The title of the event."
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed description of the event."
+        },
+        "date": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The date and time of the event (ISO 8601)."
+        },
+        "location": {
+          "type": "string",
+          "description": "Where the event takes place."
+        },
+        "uid": {
+          "type": "string",
+          "description": "The ID of the user who created the event."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the event was created."
+        }
+      },
+      "required": ["title", "date", "uid", "createdAt"]
+    }
+  },
+  "firestore": {
+    "events/{eventId}": {
+      "schema": "Event",
+      "description": "Collection of user events."
+    }
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "name": "Agenda de Eventos",
+  "description": "Uma agenda completa para gerenciar seus eventos com autenticação e persistência em tempo real.",
+  "requestFramePermissions": []
+}

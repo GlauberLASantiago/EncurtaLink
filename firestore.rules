@@ -1,0 +1,95 @@
+// ===============================================================
+// Assumed Data Model
+// ===============================================================
+//
+// Collection: events
+// Document ID: {eventId}
+// Fields:
+//   - title: string (required, 1-100 chars)
+//   - description: string (optional, 0-500 chars)
+//   - date: string (required, ISO 8601 format)
+//   - location: string (optional, 0-200 chars)
+//   - uid: string (required, matches auth.uid)
+//   - createdAt: string (required, ISO 8601 format)
+//
+// ===============================================================
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.uid;
+    }
+
+    function uidUnchanged() {
+      return !('uid' in request.resource.data) || request.resource.data.uid == request.auth.uid;
+    }
+
+    function uidNotModified() {
+      return !('uid' in request.resource.data) || request.resource.data.uid == resource.data.uid;
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function isValidDateString(dateStr) {
+      return dateStr is string && dateStr.matches("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*Z?$");
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidEvent(data) {
+      return data.keys().hasOnly(['title', 'description', 'date', 'location', 'uid', 'createdAt']) &&
+             data.title is string && data.title.size() > 0 && data.title.size() <= 100 &&
+             (!('description' in data) || (data.description is string && data.description.size() <= 500)) &&
+             isValidDateString(data.date) &&
+             (!('location' in data) || (data.location is string && data.location.size() <= 200)) &&
+             data.uid is string && data.uid == request.auth.uid &&
+             isValidDateString(data.createdAt);
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /events/{eventId} {
+      // Users can only read their own events
+      allow read: if isDocOwner();
+      
+      // Users can create events if they are authenticated and data is valid
+      allow create: if isAuthenticated() && 
+                      hasRequiredFields(['title', 'date', 'uid', 'createdAt']) && 
+                      isValidEvent(request.resource.data) &&
+                      uidUnchanged();
+
+      // Users can update their own events if data remains valid
+      allow update: if isDocOwner() && 
+                      isValidEvent(request.resource.data) &&
+                      uidNotModified() &&
+                      request.resource.data.createdAt == resource.data.createdAt;
+
+      // Users can delete their own events
+      allow delete: if isDocOwner();
+    }
+
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+  }
+}
